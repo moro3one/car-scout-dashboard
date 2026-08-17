@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Car Scout UA</title>
+<style>
+  :root {
+    --ink: #0e1012;
+    --panel: #16191c;
+    --panel-2: #1c2024;
+    --line: #23282d;
+    --text: #e9e7e2;
+    --muted: #878d94;
+    --amber: #f0a92c;
+    --green: #55a86c;
+    --red: #e0574f;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 15px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 72px; }
+
+  /* --- шапка --- */
+  header { border-bottom: 1px solid var(--line); margin-bottom: 22px; }
+  .head-in { max-width: 1080px; margin: 0 auto; padding: 26px 20px 20px; }
+  h1 {
+    margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--text);
+  }
+  .sub { margin-top: 6px; color: var(--muted); font-size: 13px; }
+  .sub b { color: var(--text); font-weight: 500; font-family: var(--mono); }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 26px; margin-top: 20px; }
+  .stat .n {
+    font-family: var(--mono); font-size: 24px; font-weight: 500;
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  .stat .l {
+    font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--muted); margin-top: 3px;
+  }
+  .stat.hit .n { color: var(--amber); }
+  .stat.alarm .n { color: var(--red); }
+
+  /* --- керування --- */
+  .bar {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin-bottom: 18px;
+  }
+  input[type=search] {
+    flex: 1 1 200px; min-width: 160px; background: var(--panel);
+    border: 1px solid var(--line); color: var(--text); border-radius: 7px;
+    padding: 9px 12px; font-family: var(--sans); font-size: 14px;
+  }
+  input[type=search]::placeholder { color: var(--muted); }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 7px;
+    padding: 8px 12px; font-size: 13px; color: var(--muted); user-select: none;
+  }
+  .toggle:has(input:checked) { color: var(--text); border-color: #3a4149; background: var(--panel-2); }
+  .toggle input { accent-color: var(--amber); margin: 0; }
+  select {
+    background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    border-radius: 7px; padding: 8px 10px; font-size: 13px; font-family: var(--sans);
+  }
+  .count { color: var(--muted); font-size: 13px; font-family: var(--mono); }
+
+  /* --- цінові сходи --- */
+  .ladder { display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    display: grid; grid-template-columns: 132px minmax(0, 1fr) 190px;
+    gap: 18px; align-items: center;
+    background: var(--panel); border: 1px solid var(--line);
+    border-left: 3px solid transparent; border-radius: 9px;
+    padding: 14px 16px; cursor: pointer;
+    transition: background .12s ease, border-color .12s ease;
+  }
+  .row:hover { background: var(--panel-2); }
+  .row.is-hit { border-left-color: var(--amber); }
+  .row.is-alarm { border-left-color: var(--red); }
+  .row:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+  .price {
+    font-family: var(--mono); font-size: 21px; font-weight: 500;
+    font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+  }
+  .price .in-budget { color: var(--green); }
+  .expected {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    font-variant-numeric: tabular-nums; margin-top: 2px;
+  }
+
+  .name { font-weight: 500; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .flag { font-size: 13px; }
+  .specs {
+    margin-top: 5px; color: var(--muted); font-size: 13px;
+    display: flex; flex-wrap: wrap; gap: 4px 10px;
+  }
+  .specs span { white-space: nowrap; }
+  .specs .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .src {
+    font-size: 10px; letter-spacing: .07em; text-transform: uppercase;
+    border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--muted);
+  }
+
+  /* смуга «факт проти справедливої ціни» */
+  .gauge { display: flex; flex-direction: column; gap: 6px; }
+  .gauge-top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums;
+  }
+  .deal-pos { color: var(--amber); font-weight: 500; }
+  .deal-neg { color: var(--muted); }
+  .track { height: 5px; background: #2a3036; border-radius: 3px; position: relative; overflow: hidden; }
+  .fill { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--amber); }
+  .fill.over { background: #454c53; }
+  .fitline {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 11px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase;
+  }
+  .fitbar { flex: 1; height: 3px; background: #2a3036; border-radius: 2px; overflow: hidden; }
+  .fitbar i { display: block; height: 100%; background: var(--green); }
+  .fitval { font-family: var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
+
+  /* --- розгорнута картка --- */
+  .detail {
+    grid-column: 1 / -1; border-top: 1px solid var(--line); margin-top: 12px;
+    padding-top: 12px; display: grid; gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  }
+  .detail dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; font-size: 13px; }
+  .detail dt { color: var(--muted); }
+  .detail dd {
+    margin: 0; text-align: right; font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .detail h4 {
+    margin: 0 0 7px; font-size: 11px; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--muted); font-weight: 500;
+  }
+  .alarm-note {
+    grid-column: 1 / -1; background: rgba(224,87,79,.1);
+    border: 1px solid rgba(224,87,79,.45); color: #ffb0aa;
+    border-radius: 7px; padding: 9px 11px; font-size: 13px;
+  }
+  .go {
+    display: inline-block; margin-top: 4px; color: var(--ink); background: var(--amber);
+    text-decoration: none; font-weight: 600; font-size: 13px;
+    padding: 8px 14px; border-radius: 7px;
+  }
+  .go:hover { filter: brightness(1.08); }
+  .empty { color: var(--muted); text-align: center; padding: 48px 0; font-size: 14px; }
+
+  footer {
+    border-top: 1px solid var(--line); margin-top: 40px;
+    color: var(--muted); font-size: 12px; line-height: 1.7;
+  }
+  .foot-in { max-width: 1080px; margin: 0 auto; padding: 18px 20px 30px; }
+  footer a { color: var(--text); }
+
+  @media (max-width: 720px) {
+    .row { grid-template-columns: 1fr; gap: 12px; }
+    .gauge { order: 3; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header><div class="head-in">
+  <h1>Car Scout UA</h1>
+  <div class="sub" id="meta"></div>
+  <div class="stats" id="stats"></div>
+</div></header>
+
+<div class="wrap">
+  <div class="bar">
+    <input type="search" id="q" placeholder="марка, модель, місто">
+    <label class="toggle"><input type="checkbox" id="only"> тільки 🎯</label>
+    <label class="toggle"><input type="checkbox" id="budget"> у бюджеті</label>
+    <select id="sort">
+      <option value="price">від дешевого</option>
+      <option value="-price">від дорогого</option>
+      <option value="-deal">за вигодою</option>
+      <option value="-fit">за відповідністю</option>
+      <option value="km">за пробігом</option>
+      <option value="-year">за роком</option>
+    </select>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="ladder" id="ladder"></div>
+</div>
+
+<footer><div class="foot-in">
+  Дані: <a href="https://auto.ria.com" target="_blank" rel="noopener">AUTO.RIA</a> і
+  <a href="https://rst.ua" target="_blank" rel="noopener">RST.ua</a>.
+  Розшук — реєстр Національної поліції з data.gov.ua.<br>
+  «Справедлива ціна» — ridge-регресія по вибірці ринку, не оцінка стану авто.
+  Огляд, тест-драйв і торг лишаються на людині.
+</div></footer>
+
+<script>
+const DATA = {"cars":[{"id":759,"source":"autoria","title":"Nissan Note 2019","url":"https://auto.ria.com/uk/auto_nissan_note_39711433.html","year":2019,"km":96000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":10999,"expected":11976.247763879588,"deal":0.08159882653955869,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",10999]]},{"id":1290,"source":"autoria","title":"Nissan Note 2019","url":"https://auto.ria.com/uk/auto_nissan_note_40195060.html","year":2019,"km":36000,"engine":1.2,"gearbox":"Автомат","city":"Біла Церква","price":11199,"expected":13279.949312675599,"deal":0.15669858850209242,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",11199]]},{"id":1557,"source":"autoria","title":"Nissan Note 2018","url":"https://auto.ria.com/uk/auto_nissan_note_40268642.html","year":2018,"km":56000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":11500,"expected":12277.024644103585,"deal":0.06329095742890561,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",11500]]},{"id":1570,"source":"autoria","title":"Toyota Aqua 2018","url":"https://auto.ria.com/uk/auto_toyota_aqua_40258250.html","year":2018,"km":94000,"engine":1.5,"gearbox":"Варіатор","city":"Київ","price":11500,"expected":12852.003846586365,"deal":0.10519790242246718,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",11500]]},{"id":1593,"source":"autoria","title":"Nissan Note 2017","url":"https://auto.ria.com/uk/auto_nissan_note_37152791.html","year":2017,"km":94000,"engine":1.2,"gearbox":"Автомат","city":"Ірпінь","price":11500,"expected":11003.406165343,"deal":-0.04513091920764521,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",11500]]},{"id":1541,"source":"autoria","title":"Nissan Note 2018","url":"https://auto.ria.com/uk/auto_nissan_note_40291783.html","year":2018,"km":67000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":11700,"expected":12046.639828911251,"deal":0.028774814706366114,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",11700]]},{"id":1636,"source":"rst","title":"Nissan Note 2018","url":"https://rst.ua/ukr/oldcars/nissan/note/nissan_note_15331697.html","year":2018,"km":43000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":11700,"expected":12554.984593138779,"deal":0.06809921484141229,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",11700]]},{"id":96,"source":"autoria","title":"Nissan Note 2019","url":"https://auto.ria.com/uk/auto_nissan_note_40302610.html","year":2019,"km":64000,"engine":1.2,"gearbox":"Редуктор","city":"Київ","price":11900,"expected":12654.7756328288,"deal":0.059643541278659555,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",11900]]},{"id":1530,"source":"autoria","title":"Toyota Aqua 2018","url":"https://auto.ria.com/uk/auto_toyota_aqua_40228731.html","year":2018,"km":94000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":11900,"expected":12852.003846586365,"deal":0.07407435120237908,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",11900]]},{"id":1167,"source":"autoria","title":"Nissan Note 2019","url":"https://auto.ria.com/uk/auto_nissan_note_40210734.html","year":2019,"km":71000,"engine":1.2,"gearbox":"Редуктор","city":"Київ","price":11990,"expected":12503.136071783249,"deal":0.04104058924394822,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",11990]]},{"id":1639,"source":"rst","title":"Toyota Aqua 2018","url":"https://rst.ua/ukr/oldcars/toyota/aqua/toyota_aqua_15302926.html","year":2018,"km":77000,"engine":1.5,"gearbox":"Автомат","city":"Київська","price":12000,"expected":13233.831876545002,"deal":0.0932331533342044,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12000]]},{"id":1136,"source":"autoria","title":"Nissan Note 2019","url":"https://auto.ria.com/uk/auto_nissan_note_39876287.html","year":2019,"km":65000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":12200,"expected":12633.000757119578,"deal":0.03427536857191686,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",12200]]},{"id":1462,"source":"autoria","title":"Nissan Note 2019","url":"https://auto.ria.com/uk/auto_nissan_note_40304448.html","year":2019,"km":39000,"engine":1.2,"gearbox":null,"city":"Київ","price":12200,"expected":13211.515394024398,"deal":0.07656316204891296,"fit":0.925,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",12200]]},{"id":1590,"source":"autoria","title":"Nissan Note 2018","url":"https://auto.ria.com/uk/auto_nissan_note_40234737.html","year":2018,"km":40000,"engine":null,"gearbox":"Автомат","city":"Київ","price":12200,"expected":14130.500557634283,"deal":0.13661940352079685,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12200]]},{"id":1606,"source":"autoria","title":"Nissan Note 2018","url":"https://auto.ria.com/uk/auto_nissan_note_40204743.html","year":2018,"km":51000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":12200,"expected":12383.196506962791,"deal":0.01479395944817512,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12200]]},{"id":35,"source":"autoria","title":"Toyota Aqua 2019","url":"https://auto.ria.com/uk/auto_toyota_aqua_39355563.html","year":2019,"km":81000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":12500,"expected":13735.315660923112,"deal":0.0899371875695276,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",12500]]},{"id":1521,"source":"autoria","title":"Toyota Aqua 2018","url":"https://auto.ria.com/uk/auto_toyota_aqua_39368957.html","year":2018,"km":91000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":12500,"expected":12918.575542528248,"deal":0.032401060097553905,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12500]]},{"id":1549,"source":"autoria","title":"Ford C-Max 2017","url":"https://auto.ria.com/uk/auto_ford_c_max_39996197.html","year":2017,"km":108000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":12500,"expected":15676.104605081375,"deal":0.20260802572418707,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12500]]},{"id":1586,"source":"autoria","title":"Chevrolet Volt 2017","url":"https://auto.ria.com/uk/auto_chevrolet_volt_39968404.html","year":2017,"km":104000,"engine":1.49,"gearbox":null,"city":"Київ","price":12500,"expected":15178.238318727128,"deal":0.17645251461249487,"fit":0.925,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12500]]},{"id":1624,"source":"autoria","title":"Nissan Note 2017","url":"https://auto.ria.com/uk/auto_nissan_note_40167299.html","year":2017,"km":85000,"engine":1.2,"gearbox":"Редуктор","city":"Київ","price":12500,"expected":11175.281999705885,"deal":-0.11854000644717327,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12500]]},{"id":1627,"source":"autoria","title":"Nissan Note 2018","url":"https://auto.ria.com/uk/auto_nissan_note_40178357.html","year":2018,"km":85000,"engine":1.2,"gearbox":"Редуктор","city":"Київ","price":12500,"expected":11678.934758892385,"deal":-0.07030309339492227,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12500]]},{"id":43,"source":"autoria","title":"Nissan Note 2019","url":"https://auto.ria.com/uk/auto_nissan_note_40282344.html","year":2019,"km":73000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":12650,"expected":12460.145186758196,"deal":-0.015236966375284981,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",12650]]},{"id":872,"source":"autoria","title":"Nissan Note 2019","url":"https://auto.ria.com/uk/auto_nissan_note_40245971.html","year":2019,"km":48000,"engine":1.2,"gearbox":"Редуктор","city":"Васильків","price":12700,"expected":13008.322290565731,"deal":0.02370192586551623,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",12700]]},{"id":1532,"source":"autoria","title":"Toyota Aqua 2018","url":"https://auto.ria.com/uk/auto_toyota_aqua_38804455.html","year":2018,"km":74000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":12700,"expected":13302.381391651556,"deal":0.04528372581691307,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12700]]},{"id":1604,"source":"autoria","title":"Toyota Aqua 2017","url":"https://auto.ria.com/uk/auto_toyota_aqua_39423417.html","year":2017,"km":64000,"engine":1.5,"gearbox":"Варіатор","city":"Бровари","price":12700,"expected":12949.825854062421,"deal":0.019291831170382072,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12700]]},{"id":640,"source":"autoria","title":"Nissan Note 2019","url":"https://auto.ria.com/uk/auto_nissan_note_40267682.html","year":2019,"km":58000,"engine":1.2,"gearbox":"Редуктор","city":"Київ","price":12900,"expected":12786.215332926737,"deal":-0.00889901070102018,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",12900]]},{"id":1597,"source":"autoria","title":"Toyota Aqua 2018","url":"https://auto.ria.com/uk/auto_toyota_aqua_39957104.html","year":2018,"km":62000,"engine":1.5,"gearbox":"Редуктор","city":"Київ","price":12900,"expected":13580.148667375079,"deal":0.05008403693024852,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12900]]},{"id":1054,"source":"autoria","title":"Nissan Note 2019","url":"https://auto.ria.com/uk/auto_nissan_note_39812687.html","year":2019,"km":32000,"engine":null,"gearbox":"Автомат","city":"Київ","price":12999,"expected":14972.203014107994,"deal":0.13179109395248556,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",12999]]},{"id":1539,"source":"autoria","title":"Nissan Note 2017","url":"https://auto.ria.com/uk/auto_nissan_note_39889518.html","year":2017,"km":70000,"engine":1.2,"gearbox":"Автомат","city":"Біла Церква","price":12999,"expected":11467.728498562998,"deal":-0.13352875433255013,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",12999]]},{"id":1522,"source":"autoria","title":"Nissan Note 2018","url":"https://auto.ria.com/uk/auto_nissan_note_40191348.html","year":2018,"km":45000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":13000,"expected":12511.815431735104,"deal":-0.039017884409216885,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",13000]]},{"id":1581,"source":"autoria","title":"Toyota Aqua 2018","url":"https://auto.ria.com/uk/auto_toyota_aqua_40246118.html","year":2018,"km":57000,"engine":1.5,"gearbox":"Редуктор","city":"Васильків","price":13000,"expected":13697.589963105715,"deal":0.050927934401939635,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",13000]]},{"id":824,"source":"autoria","title":"Toyota Aqua 2019","url":"https://auto.ria.com/uk/auto_toyota_aqua_40250741.html","year":2019,"km":57000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":13100,"expected":14314.91925996868,"deal":0.0848708426436027,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",13100]]},{"id":1617,"source":"autoria","title":"Suzuki Baleno 2018","url":"https://auto.ria.com/uk/auto_suzuki_baleno_33790707.html","year":2018,"km":50000,"engine":1.2,"gearbox":null,"city":"Київ","price":13100,"expected":17946.8876269695,"deal":0.27006842231997313,"fit":0.925,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",13100]]},{"id":588,"source":"autoria","title":"Toyota Aqua 2019","url":"https://auto.ria.com/uk/auto_toyota_aqua_39946773.html","year":2019,"km":57000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":13200,"expected":14314.91925996868,"deal":0.07788512388515692,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",13200]]},{"id":687,"source":"autoria","title":"Nissan Note 2019","url":"https://auto.ria.com/uk/auto_nissan_note_40262974.html","year":2019,"km":95000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":13300,"expected":11996.890627086443,"deal":-0.10862059290358218,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",13300]]},{"id":1569,"source":"autoria","title":"Toyota Aqua 2018","url":"https://auto.ria.com/uk/auto_toyota_aqua_39919201.html","year":2018,"km":99000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":13300,"expected":12741.812492593192,"deal":-0.04380754368589889,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",13300]]},{"id":1560,"source":"autoria","title":"Toyota Aqua 2017","url":"https://auto.ria.com/uk/auto_toyota_aqua_37114673.html","year":2017,"km":64000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":13500,"expected":12949.825854062421,"deal":-0.04248506135431827,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",13500]]},{"id":1562,"source":"autoria","title":"Nissan Note 2017","url":"https://auto.ria.com/uk/auto_nissan_note_40091453.html","year":2017,"km":12000,"engine":null,"gearbox":"Автомат","city":"Київ","price":13500,"expected":14189.097501290726,"deal":0.04856528057743216,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",13500]]},{"id":1600,"source":"autoria","title":"Ford C-Max 2017","url":"https://auto.ria.com/uk/auto_ford_c_max_39235436.html","year":2017,"km":73000,"engine":2,"gearbox":"Варіатор","city":"Бориспіль","price":14000,"expected":16650.052705216218,"deal":0.15916182081429658,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",14000]]},{"id":1626,"source":"autoria","title":"Nissan Note 2018","url":"https://auto.ria.com/uk/auto_nissan_note_40180673.html","year":2018,"km":45000,"engine":1.2,"gearbox":"Варіатор","city":"Київ","price":14000,"expected":12511.815431735104,"deal":-0.11894233705607972,"fit":1,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",14000]]},{"id":1096,"source":"autoria","title":"Toyota Aqua 2019","url":"https://auto.ria.com/uk/auto_toyota_aqua_40219530.html","year":2019,"km":64000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":14200,"expected":14143.386540941037,"deal":-0.004002822018268609,"fit":0.955,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",14200]]},{"id":1414,"source":"autoria","title":"Toyota Aqua 2019","url":"https://auto.ria.com/uk/auto_toyota_aqua_39906307.html","year":2019,"km":86000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":14200,"expected":13617.550910128779,"deal":-0.04277194142435653,"fit":0.955,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",14200]]},{"id":810,"source":"autoria","title":"Toyota Aqua 2019","url":"https://auto.ria.com/uk/auto_toyota_aqua_39902362.html","year":2019,"km":53000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":14400,"expected":14413.870388777856,"deal":0.0009622945401711557,"fit":0.955,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",14400]]},{"id":1531,"source":"autoria","title":"Honda Shuttle 2017","url":"https://auto.ria.com/uk/auto_honda_shuttle_37387010.html","year":2017,"km":93000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":14500,"expected":16539.538881917186,"deal":0.12331292283771167,"fit":0.955,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",14500]]},{"id":1596,"source":"autoria","title":"Chevrolet Volt 2018","url":"https://auto.ria.com/uk/auto_chevrolet_volt_36865032.html","year":2018,"km":61000,"engine":1.49,"gearbox":"Автомат","city":"Київ","price":14599,"expected":17081.53865321317,"deal":0.1453346038441441,"fit":0.955,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",14599]]},{"id":999,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_40230801.html","year":2019,"km":82000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":14600,"expected":19152.80745180025,"deal":0.23770966545023736,"fit":0.955,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",14600]]},{"id":1540,"source":"autoria","title":"Chevrolet Volt 2018","url":"https://auto.ria.com/uk/auto_chevrolet_volt_40294465.html","year":2018,"km":97000,"engine":1.49,"gearbox":"Автомат","city":"Білогородка","price":14700,"expected":16054.678047041258,"deal":0.0843790229285173,"fit":0.955,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",14700]]},{"id":1589,"source":"autoria","title":"Toyota Aqua 2018","url":"https://auto.ria.com/uk/auto_toyota_aqua_39798796.html","year":2018,"km":32000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":14999,"expected":14300.207756283451,"deal":-0.048865880526071555,"fit":0.955,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",14999]]},{"id":1543,"source":"autoria","title":"Hyundai Sonata 2017","url":"https://auto.ria.com/uk/auto_hyundai_sonata_36290415.html","year":2017,"km":90000,"engine":2,"gearbox":"Автомат","city":"Київ","price":15000,"expected":17948.364695794757,"deal":0.16426926607333475,"fit":0.955,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",15000]]},{"id":1556,"source":"autoria","title":"Chevrolet Volt 2017","url":"https://auto.ria.com/uk/auto_chevrolet_volt_38953820.html","year":2017,"km":90000,"engine":1.49,"gearbox":"Автомат","city":"Ірпінь","price":15250,"expected":15548.63796174056,"deal":0.019206695948249454,"fit":0.9325,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",15250]]},{"id":1632,"source":"rst","title":"Chevrolet Volt 2017","url":"https://rst.ua/ukr/oldcars/chevrolet/volt/chevrolet_volt_15190807.html","year":2017,"km":90000,"engine":1.5,"gearbox":"Автомат","city":"Ірпінь","price":15250,"expected":15570.625926743545,"deal":0.020591717266346354,"fit":0.9325,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",15250]]},{"id":850,"source":"autoria","title":"Lincoln MKZ 2019","url":"https://auto.ria.com/uk/auto_lincoln_mkz_40247993.html","year":2019,"km":110000,"engine":null,"gearbox":null,"city":"Київ","price":15300,"expected":18938.946608284477,"deal":0.19214091910965578,"fit":0.853,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",15300]]},{"id":1566,"source":"autoria","title":"Chevrolet Volt 2017","url":"https://auto.ria.com/uk/auto_chevrolet_volt_36615446.html","year":2017,"km":105000,"engine":1.49,"gearbox":"Автомат","city":"Київ","price":15500,"expected":15152.121360002246,"deal":-0.02295907165290173,"fit":0.91,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",15500]]},{"id":1559,"source":"autoria","title":"Ford Fusion 2017","url":"https://auto.ria.com/uk/auto_ford_fusion_36452916.html","year":2017,"km":96000,"engine":2,"gearbox":"Автомат","city":"Київ","price":15599,"expected":17118.747099215492,"deal":0.08877677147792774,"fit":0.9010900000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",15599]]},{"id":1580,"source":"autoria","title":"Ford Fusion 2018","url":"https://auto.ria.com/uk/auto_ford_fusion_39963370.html","year":2018,"km":70000,"engine":2,"gearbox":"Автомат","city":"Київ","price":15900,"expected":18709.527955956328,"deal":0.1501656248393959,"fit":0.874,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",15900]]},{"id":1553,"source":"autoria","title":"Chevrolet Volt 2017","url":"https://auto.ria.com/uk/auto_chevrolet_volt_36270616.html","year":2017,"km":76000,"engine":1.49,"gearbox":"Автомат","city":"Обухів","price":16000,"expected":15928.076591536515,"deal":-0.0045155112138085445,"fit":0.8650000000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",16000]]},{"id":1633,"source":"rst","title":"Chevrolet Volt 2017","url":"https://rst.ua/ukr/oldcars/chevrolet/volt/chevrolet_volt_14562662.html","year":2017,"km":76000,"engine":1.5,"gearbox":"Автомат","city":"Обухів","price":16000,"expected":15950.601136227911,"deal":-0.003096990724687553,"fit":0.8650000000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",16000]]},{"id":1591,"source":"autoria","title":"Toyota Prius 2018","url":"https://auto.ria.com/uk/auto_toyota_prius_40234369.html","year":2018,"km":110000,"engine":null,"gearbox":null,"city":"Київ","price":16300,"expected":19427.93624100824,"deal":0.16100198200186758,"fit":0.763,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",16300]]},{"id":1552,"source":"autoria","title":"Audi A3 Sportback 2018","url":"https://auto.ria.com/uk/auto_audi_a3_sportback_40275607.html","year":2018,"km":99000,"engine":1.4,"gearbox":"Автомат","city":"Київ","price":16500,"expected":18040.3596875927,"deal":0.08538408957844038,"fit":0.8200000000000002,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",16500]]},{"id":1162,"source":"autoria","title":"Hyundai Ioniq 2019","url":"https://auto.ria.com/uk/auto_hyundai_ioniq_39801167.html","year":2019,"km":83000,"engine":1.58,"gearbox":"Автомат","city":"Київ","price":16700,"expected":18697.07329443852,"deal":0.10681208031807594,"fit":0.8020000000000002,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",16700]]},{"id":1595,"source":"autoria","title":"Audi A3 2017","url":"https://auto.ria.com/uk/auto_audi_a3_39336097.html","year":2017,"km":97000,"engine":1.4,"gearbox":"Варіатор","city":"Київ","price":16700,"expected":17321.9310566993,"deal":0.035904256555666605,"fit":0.8020000000000002,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",16700]]},{"id":1620,"source":"autoria","title":"Ford Mondeo 2017","url":"https://auto.ria.com/uk/auto_ford_mondeo_37627153.html","year":2017,"km":108000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":16700,"expected":15676.104605081375,"deal":-0.06531567763248605,"fit":0.8020000000000002,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",16700]]},{"id":1629,"source":"autoria","title":"Chevrolet Volt 2018","url":"https://auto.ria.com/uk/auto_chevrolet_volt_39628966.html","year":2018,"km":48000,"engine":1.49,"gearbox":"Автомат","city":"Білогородка","price":16800,"expected":17468.27597362493,"deal":0.03825655002439571,"fit":0.793,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",16800]]},{"id":1637,"source":"rst","title":"Audi A3 2017","url":"https://rst.ua/ukr/oldcars/audi/a3/audi_a3_15330567.html","year":2017,"km":95000,"engine":1.4,"gearbox":"Автомат","city":"Київ","price":16900,"expected":17381.696423419286,"deal":0.027712854469732328,"fit":0.7840000000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",16900]]},{"id":1555,"source":"autoria","title":"BMW 3 Series 2017","url":"https://auto.ria.com/uk/auto_bmw_3_series_40134245.html","year":2017,"km":106000,"engine":2,"gearbox":"Автомат","city":"Київ","price":17000,"expected":19327.15095831789,"deal":0.12040838110783965,"fit":0.775,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",17000]]},{"id":1594,"source":"autoria","title":"Nissan Rogue 2018","url":"https://auto.ria.com/uk/auto_nissan_rogue_40228017.html","year":2018,"km":106000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":17000,"expected":18099.25798719399,"deal":0.060734975321737585,"fit":0.775,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",17000]]},{"id":1605,"source":"autoria","title":"Toyota Prius Prime 2018","url":"https://auto.ria.com/uk/auto_toyota_prius_prime_40208477.html","year":2018,"km":102000,"engine":1.8,"gearbox":"Варіатор","city":"Київ","price":17000,"expected":19148.541213497694,"deal":0.11220391096859117,"fit":0.775,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",17000]]},{"id":197,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_40256099.html","year":2019,"km":58000,"engine":2,"gearbox":"Автомат","city":"Київ","price":17384,"expected":19961.018664773866,"deal":0.12910256275255383,"fit":0.7404400000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",17384]]},{"id":1564,"source":"autoria","title":"Ford Mondeo 2018","url":"https://auto.ria.com/uk/auto_ford_mondeo_34137655.html","year":2018,"km":48000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":17500,"expected":18165.96777665527,"deal":0.03666018705103576,"fit":0.7300000000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",17500]]},{"id":1537,"source":"autoria","title":"Chevrolet Volt 2018","url":"https://auto.ria.com/uk/auto_chevrolet_volt_39248845.html","year":2018,"km":94000,"engine":1.5,"gearbox":"Варіатор","city":"Київ","price":17600,"expected":16160.660354241307,"deal":-0.08906440790217732,"fit":0.7210000000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",17600]]},{"id":1554,"source":"autoria","title":"Kia Niro 2018","url":"https://auto.ria.com/uk/auto_kia_niro_36909902.html","year":2018,"km":63000,"engine":1.59,"gearbox":"Автомат","city":"Київ","price":17900,"expected":18543.903446507902,"deal":0.03472318804750674,"fit":0.6940000000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",17900]]},{"id":302,"source":"autoria","title":"Honda Clarity 2019","url":"https://auto.ria.com/uk/auto_honda_clarity_40293682.html","year":2019,"km":78000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":17999,"expected":20140.872987673658,"deal":0.10634459534025649,"fit":0.6850900000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",17999]]},{"id":1527,"source":"autoria","title":"Audi A3 2017","url":"https://auto.ria.com/uk/auto_audi_a3_40304966.html","year":2017,"km":108000,"engine":1.4,"gearbox":"Робот","city":"Київ","price":17999,"expected":16996.87592315045,"deal":-0.05895931001559041,"fit":0.6850900000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",17999]]},{"id":1612,"source":"autoria","title":"Chevrolet Volt 2018","url":"https://auto.ria.com/uk/auto_chevrolet_volt_38905723.html","year":2018,"km":85000,"engine":1.49,"gearbox":"Автомат","city":"Київ","price":17999,"expected":16389.916080927702,"deal":-0.09817523842875105,"fit":0.6850900000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",17999]]},{"id":793,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_39846213.html","year":2019,"km":83000,"engine":2,"gearbox":"Автомат","city":"Київ","price":18000,"expected":19119.851513753933,"deal":0.0585700946970411,"fit":0.6850000000000002,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",18000]]},{"id":1568,"source":"autoria","title":"Toyota Prius 2017","url":"https://auto.ria.com/uk/auto_toyota_prius_40124069.html","year":2017,"km":80000,"engine":1.8,"gearbox":"Варіатор","city":"Київ","price":18000,"expected":19030.28777870212,"deal":0.05413936934023533,"fit":0.6850000000000002,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",18000]]},{"id":1230,"source":"autoria","title":"Ford Escape 2019","url":"https://auto.ria.com/uk/auto_ford_escape_39525155.html","year":2019,"km":93000,"engine":2.5,"gearbox":"Автомат","city":"Київ","price":18200,"expected":18855.26039359219,"deal":0.03475212645776431,"fit":0.667,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",18200]]},{"id":1551,"source":"autoria","title":"Ford Fusion 2017","url":"https://auto.ria.com/uk/auto_ford_fusion_38903824.html","year":2017,"km":64000,"engine":2,"gearbox":"Автомат","city":"Київ","price":18200,"expected":18088.62908707347,"deal":-0.0061569570800762315,"fit":0.667,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",18200]]},{"id":1619,"source":"autoria","title":"Toyota Prius Prime 2017","url":"https://auto.ria.com/uk/auto_toyota_prius_prime_36528093.html","year":2017,"km":80000,"engine":1.8,"gearbox":null,"city":"Київ","price":18200,"expected":19030.28777870212,"deal":0.04362980677734905,"fit":0.592,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",18200]]},{"id":521,"source":"autoria","title":"Hyundai Sonata 2019","url":"https://auto.ria.com/uk/auto_hyundai_sonata_36466835.html","year":2019,"km":51000,"engine":2,"gearbox":"Автомат","city":"Київ","price":18300,"expected":20964.45310801078,"deal":0.12709385235490164,"fit":0.658,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",18300]]},{"id":1635,"source":"rst","title":"Honda Clarity 2017","url":"https://rst.ua/ukr/oldcars/honda/clarity/honda_clarity_15368769.html","year":2017,"km":63000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":18500,"expected":18923.772543564948,"deal":0.0223936608088778,"fit":0.64,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",18500]]},{"id":892,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_40243378.html","year":2019,"km":64000,"engine":2,"gearbox":"Автомат","city":"Київ","price":18750,"expected":19755.82344174405,"deal":0.0509127571781567,"fit":0.6175,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",18750]]},{"id":1578,"source":"autoria","title":"Toyota Yaris 2018","url":"https://auto.ria.com/uk/auto_toyota_yaris_38851508.html","year":2018,"km":67000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":18900,"expected":19494.026902547528,"deal":0.030472252116872746,"fit":0.604,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",18900]]},{"id":1561,"source":"autoria","title":"BMW 3 Series 2017","url":"https://auto.ria.com/uk/auto_bmw_3_series_39990047.html","year":2017,"km":81000,"engine":2,"gearbox":"Автомат","city":"Київ","price":18950,"expected":20177.43813221386,"deal":0.060832208934107505,"fit":0.5995,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",18950]]},{"id":974,"source":"autoria","title":"Acura RLX 2019","url":"https://auto.ria.com/uk/auto_acura_rlx_39118193.html","year":2019,"km":103000,"engine":3.5,"gearbox":"Робот","city":"Київ","price":19000,"expected":23694.59415683247,"deal":0.19812933387925355,"fit":0.5950000000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",19000]]},{"id":1536,"source":"autoria","title":"Mercedes-Benz C-Class 2017","url":"https://auto.ria.com/uk/auto_mercedes_benz_c_class_40296769.html","year":2017,"km":106000,"engine":null,"gearbox":"Автомат","city":"Київ","price":19000,"expected":17460.55510680231,"deal":-0.0881670075081377,"fit":0.5950000000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",19000]]},{"id":1547,"source":"autoria","title":"Honda Clarity 2017","url":"https://auto.ria.com/uk/auto_honda_clarity_34865071.html","year":2017,"km":106000,"engine":null,"gearbox":"Автомат","city":"Київ","price":19000,"expected":18859.61521719644,"deal":-0.007443671633107167,"fit":0.5950000000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",19000]]},{"id":1609,"source":"autoria","title":"Chevrolet Volt 2017","url":"https://auto.ria.com/uk/auto_chevrolet_volt_35989774.html","year":2017,"km":83000,"engine":1.5,"gearbox":"Автомат","city":"Київ","price":19200,"expected":15759.468379323425,"deal":-0.2183152082205124,"fit":0.5770000000000001,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",19200]]},{"id":139,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_38883599.html","year":2019,"km":81000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":19500,"expected":19185.8201943595,"deal":-0.016375625459727042,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",19500]]},{"id":728,"source":"autoria","title":"Toyota Prius 2019","url":"https://auto.ria.com/uk/auto_toyota_prius_38717581.html","year":2019,"km":105000,"engine":1.8,"gearbox":"Автомат","city":"Вишгород","price":19500,"expected":19908.41351987686,"deal":0.020514619081479984,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",19500]]},{"id":458,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_39792667.html","year":2019,"km":80000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":19800,"expected":19218.889839342795,"deal":-0.03023640623963721,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",19800]]},{"id":692,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_40262526.html","year":2019,"km":88000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":19900,"expected":18955.92047610422,"deal":-0.049803939887059764,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",19900]]},{"id":1602,"source":"autoria","title":"Honda Clarity 2018","url":"https://auto.ria.com/uk/auto_honda_clarity_38957869.html","year":2018,"km":49000,"engine":1.5,"gearbox":null,"city":"Київ","price":19900,"expected":20259.25377513692,"deal":0.017732823682667553,"fit":0.47500000000000003,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",19900]]},{"id":1623,"source":"autoria","title":"BMW 3 Series 2018","url":"https://auto.ria.com/uk/auto_bmw_3_series_40185782.html","year":2018,"km":72000,"engine":2,"gearbox":"Автомат","city":"Київ","price":20100,"expected":21416.185134557138,"deal":0.06145749704196115,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",20100]]},{"id":984,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_36395010.html","year":2019,"km":57000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":20500,"expected":19995.424480843336,"deal":-0.02523454901595482,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",20500]]},{"id":1611,"source":"autoria","title":"Mitsubishi Outlander 2018","url":"https://auto.ria.com/uk/auto_mitsubishi_outlander_40198262.html","year":2018,"km":96000,"engine":2,"gearbox":"Автомат","city":"Бровари","price":20500,"expected":18564.448937683515,"deal":-0.10426116438002948,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",20500]]},{"id":1613,"source":"autoria","title":"Honda Clarity 2018","url":"https://auto.ria.com/uk/auto_honda_clarity_35304319.html","year":2018,"km":103000,"engine":null,"gearbox":"Автомат","city":"Київ","price":20799,"expected":19811.682135820465,"deal":-0.049835135523117295,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",20799]]},{"id":1638,"source":"rst","title":"Toyota Estima 2017","url":"https://rst.ua/ukr/oldcars/toyota/estima/toyota_estima_15321973.html","year":2017,"km":24000,"engine":2.4,"gearbox":"Автомат","city":"Київська","price":20950,"expected":22811.428183987948,"deal":0.08160068580425588,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",20950]]},{"id":446,"source":"autoria","title":"Honda Accord 2019","url":"https://auto.ria.com/uk/auto_honda_accord_39683856.html","year":2019,"km":64000,"engine":2,"gearbox":"Варіатор","city":"Кагарлик","price":21000,"expected":20379.27655501741,"deal":-0.03045856133836925,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",21000]]},{"id":1480,"source":"rst","title":"Nissan Serena 2019","url":"https://rst.ua/ukr/oldcars/nissan/serena/nissan_serena_15441870.html","year":2019,"km":57000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":21000,"expected":18380.459970286727,"deal":-0.14251765374467987,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T18:49:56.811Z",21000]]},{"id":1535,"source":"autoria","title":"Ford Fusion 2018","url":"https://auto.ria.com/uk/auto_ford_fusion_39751651.html","year":2018,"km":77000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":21000,"expected":18485.33554915851,"deal":-0.13603563993491927,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",21000]]},{"id":1587,"source":"autoria","title":"Toyota Camry 2017","url":"https://auto.ria.com/uk/auto_toyota_camry_39828653.html","year":2017,"km":100000,"engine":2.49,"gearbox":"Автомат","city":"Київ","price":21000,"expected":20269.053558111962,"deal":-0.03606218908013605,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",21000]]},{"id":463,"source":"autoria","title":"Nissan Serena 2019","url":"https://auto.ria.com/uk/auto_nissan_serena_40282757.html","year":2019,"km":57000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":21200,"expected":18380.459970286727,"deal":-0.15339877425653398,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",21200]]},{"id":1545,"source":"autoria","title":"Audi A3 2017","url":"https://auto.ria.com/uk/auto_audi_a3_37368313.html","year":2017,"km":53000,"engine":1.4,"gearbox":"Автомат","city":"Київ","price":21200,"expected":18685.516727669514,"deal":-0.13456857035197958,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",21200]]},{"id":243,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_40306247.html","year":2019,"km":37000,"engine":2,"gearbox":"Автомат","city":"Київ","price":21490,"expected":20696.13156883651,"deal":-0.038358300367536714,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",21490]]},{"id":920,"source":"autoria","title":"Mitsubishi Outlander 2019","url":"https://auto.ria.com/uk/auto_mitsubishi_outlander_39832345.html","year":2019,"km":85000,"engine":2,"gearbox":"Редуктор","city":"Київ","price":21500,"expected":19772.15494938218,"deal":-0.08738779637531667,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",21500]]},{"id":542,"source":"autoria","title":"Lincoln MKZ 2019","url":"https://auto.ria.com/uk/auto_lincoln_mkz_39589121.html","year":2019,"km":85000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":21800,"expected":19772.15494938218,"deal":-0.10256064934799551,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",21800]]},{"id":1526,"source":"autoria","title":"Nissan Serena 2018","url":"https://auto.ria.com/uk/auto_nissan_serena_40287540.html","year":2018,"km":80000,"engine":1.2,"gearbox":"Автомат","city":"Київ","price":22000,"expected":16904.77144180689,"deal":-0.30140771649785164,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",22000]]},{"id":1585,"source":"autoria","title":"Toyota RAV4 2017","url":"https://auto.ria.com/uk/auto_toyota_rav4_36221970.html","year":2017,"km":110000,"engine":2.49,"gearbox":"Автомат","city":"Вишгород","price":22000,"expected":19922.975276881218,"deal":-0.10425273807015052,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",22000]]},{"id":1010,"source":"autoria","title":"Toyota C-HR 2019","url":"https://auto.ria.com/uk/auto_toyota_c_hr_39961715.html","year":2019,"km":104000,"engine":1.8,"gearbox":"Автомат","city":"Київ","price":22400,"expected":19942.72866307186,"deal":-0.12321640525944144,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",22400]]},{"id":480,"source":"autoria","title":"Ford Escape 2019","url":"https://auto.ria.com/uk/auto_ford_escape_40214950.html","year":2019,"km":93000,"engine":2.49,"gearbox":"Варіатор","city":"Біла Церква","price":22500,"expected":18828.63405194048,"deal":-0.19498843824420437,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",22500]]},{"id":725,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_27110852.html","year":2019,"km":33000,"engine":2,"gearbox":"Автомат","city":"Київ","price":22500,"expected":20839.1924931441,"deal":-0.07969634655480491,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",22500]]},{"id":859,"source":"autoria","title":"Ford Explorer 2019","url":"https://auto.ria.com/uk/auto_ford_explorer_36901139.html","year":2019,"km":68000,"engine":3.34,"gearbox":"Автомат","city":"Київ","price":22500,"expected":22165.78820235398,"deal":-0.015077821487553888,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",22500]]},{"id":1282,"source":"autoria","title":"Mitsubishi Outlander 2019","url":"https://auto.ria.com/uk/auto_mitsubishi_outlander_40196011.html","year":2019,"km":37000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":22500,"expected":21476.05569219203,"deal":-0.047678415556551335,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",22500]]},{"id":1534,"source":"autoria","title":"MINI Countryman 2018","url":"https://auto.ria.com/uk/auto_mini_countryman_39892234.html","year":2018,"km":68000,"engine":1.5,"gearbox":"Автомат","city":"Буча","price":22500,"expected":18152.56675329608,"deal":-0.2394941335728474,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",22500]]},{"id":77,"source":"autoria","title":"Lincoln MKZ 2019","url":"https://auto.ria.com/uk/auto_lincoln_mkz_40101680.html","year":2019,"km":43000,"engine":2,"gearbox":"Автомат","city":"Київ","price":22900,"expected":21255.286195826702,"deal":-0.07737904768820396,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",22900]]},{"id":1574,"source":"autoria","title":"Toyota C-HR 2018","url":"https://auto.ria.com/uk/auto_toyota_c_hr_40251538.html","year":2018,"km":80000,"engine":1.8,"gearbox":"Автомат","city":"Київ","price":23500,"expected":19887.953558242065,"deal":-0.18161981478788264,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",23500]]},{"id":1203,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_35663869.html","year":2019,"km":63000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":23800,"expected":19789.87557300308,"deal":-0.20263515110056812,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",23800]]},{"id":1575,"source":"autoria","title":"Cadillac CT6 2017","url":"https://auto.ria.com/uk/auto_cadillac_ct6_40252281.html","year":2017,"km":71000,"engine":2,"gearbox":"Автомат","city":"Київ","price":23900,"expected":18545.37017419204,"deal":-0.28873135319021703,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",23900]]},{"id":786,"source":"autoria","title":"Toyota Camry 2019","url":"https://auto.ria.com/uk/auto_toyota_camry_40254074.html","year":2019,"km":88000,"engine":2.49,"gearbox":"Варіатор","city":"Київ","price":23999,"expected":22599.461037215857,"deal":-0.06192797963099387,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",23999]]},{"id":1588,"source":"autoria","title":"Honda Clarity 2018","url":"https://auto.ria.com/uk/auto_honda_clarity_35712189.html","year":2018,"km":33000,"engine":1.5,"gearbox":"Варіатор","city":"Київ","price":24000,"expected":20825.25286261686,"deal":-0.15244699107985799,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",24000]]},{"id":937,"source":"autoria","title":"Ford Fusion 2019","url":"https://auto.ria.com/uk/auto_ford_fusion_38101458.html","year":2019,"km":41000,"engine":2,"gearbox":"Варіатор","city":"Київ","price":24900,"expected":20554.05275686703,"deal":-0.2114399186642647,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",24900]]},{"id":1546,"source":"autoria","title":"BMW 5 Series 2018","url":"https://auto.ria.com/uk/auto_bmw_5_series_40286804.html","year":2018,"km":62000,"engine":2,"gearbox":"Автомат","city":"Київ","price":24900,"expected":21788.20168524205,"deal":-0.14282033734182323,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",24900]]},{"id":547,"source":"autoria","title":"Toyota C-HR 2019","url":"https://auto.ria.com/uk/auto_toyota_c_hr_40275241.html","year":2019,"km":90000,"engine":1.8,"gearbox":"Варіатор","city":"Київ","price":24999,"expected":20429.39776276584,"deal":-0.22367777505231287,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T12:54:56.956Z",24999]]},{"id":1615,"source":"autoria","title":"Chrysler Pacifica 2018","url":"https://auto.ria.com/uk/auto_chrysler_pacifica_34366837.html","year":2018,"km":100000,"engine":3.6,"gearbox":"Варіатор","city":"Київ","price":24999,"expected":23114.553725735197,"deal":-0.08152639659950281,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",24999]]},{"id":1628,"source":"autoria","title":"BMW 5 Series 2018","url":"https://auto.ria.com/uk/auto_bmw_5_series_40035151.html","year":2018,"km":93000,"engine":2,"gearbox":"Автомат","city":"Київ","price":24999,"expected":20655.496404112786,"deal":-0.21028318617519956,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",24999]]},{"id":1548,"source":"autoria","title":"Toyota C-HR 2018","url":"https://auto.ria.com/uk/auto_toyota_c_hr_37217616.html","year":2018,"km":65000,"engine":1.8,"gearbox":"Автомат","city":"Біла Церква","price":25000,"expected":20408.402383398676,"deal":-0.2249856471046643,"fit":0.55,"wanted":0,"wantedNote":null,"history":[["2026-08-17T19:05:26.803Z",25000]]}],"stats":{"active":220,"universe":127,"deals":30,"targets":26,"wanted":0},"rules":{"_comment":"Правила пошуку Car Scout UA — підтверджено оператором 17.08.2026","budget":{"min":10000,"max":15000,"currency":"USD","ideal_max":14000},"training_universe":{"price_max":25000},"_training_universe_note":"Стеля НАВЧАЛЬНОЇ вибірки, не бюджету. Бюджет = що купувати (fit score); universe = на чому вчиться модель. Підібрано замірами під сегмент 2017-2019 (медіана ринку $22k): $22k→CV MAE $1439/104 рядки, $25k→$1867/122, $30k→$2322/144, $35k→$2619/175. Обрано $25k: кращий MAE не в $22k, а запас над верхньою межею алертів ($19.5k) там майже нульовий і модель почне занижувати верх. ПЕРЕПІДБИРАТИ при зміні років або бюджету.","fuel":["hybrid"],"gearbox":["automatic"],"year":{"min":2017,"max":2019},"mileage_km_max":110000,"models":"auto","_models_note":"\"auto\" = список моделей У ЗАПИТ НЕ ПЕРЕДАЄТЬСЯ і це навмисно. Збір іде по всьому гібридному сегменту Київ+обл. у межах year/mileage з цього ж файлу, бо моделі справедливої ціни потрібна широка вибірка. Звуження до конкретних машин робить fit score, а не збір.","regions":["Київ","Київська область"],"customs_cleared_only":true,"exclude_usa_auction":true,"seller_type":"any","sources":{"auto_ria":true,"rst":true,"olx":true},"deal_score_alert_threshold":0.08,"fit_score_alert_threshold":0.7,"notify":{"new_fit":true,"price_drop":true},"cities_to_inspect":["Київ"]},"generatedAt":"2026-08-17T20:43:58.318Z"};
+const { cars, stats, rules, generatedAt } = DATA;
+const dealMin = rules.deal_score_alert_threshold, fitMin = rules.fit_score_alert_threshold;
+const bMin = rules.budget.min, bMax = rules.budget.max;
+
+const isHit = c => c.deal !== null && c.fit !== null && c.deal >= dealMin && c.fit >= fitMin;
+const inBudget = c => c.price >= bMin && c.price <= bMax;
+const usd = n => n === null || n === undefined ? "—" : "$" + Math.round(n).toLocaleString("en-US");
+const esc = s => String(s).replace(/[&<>"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
+
+document.getElementById("meta").innerHTML =
+  "Гібриди " + rules.year.min + "–" + (rules.year.max || "…") + ", Київ і область · оновлено <b>" +
+  new Date(generatedAt).toLocaleString("uk-UA", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) +
+  "</b> · бюджет <b>" + usd(bMin) + "–" + usd(bMax) + "</b>";
+
+document.getElementById("stats").innerHTML = [
+  ["активних оголошень", stats.active, ""],
+  ["у моделі ціни", stats.universe, ""],
+  ["дешевші за ринок", stats.deals, ""],
+  ["підходять і вигідні", stats.targets, "hit"],
+  ["у розшуку", stats.wanted, stats.wanted ? "alarm" : ""],
+].map(([l, n, cls]) =>
+  '<div class="stat ' + cls + '"><div class="n">' + n + '</div><div class="l">' + l + "</div></div>"
+).join("");
+
+let open = null;
+
+function sorted(list) {
+  const key = document.getElementById("sort").value;
+  const desc = key.startsWith("-");
+  const k = desc ? key.slice(1) : key;
+  return list.slice().sort((a, b) => {
+    const x = a[k], y = b[k];
+    if (x === null) return 1;
+    if (y === null) return -1;
+    return desc ? y - x : x - y;
+  });
+}
+
+function view() {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const onlyHit = document.getElementById("only").checked;
+  const onlyBudget = document.getElementById("budget").checked;
+  return sorted(cars.filter(c =>
+    (!onlyHit || isHit(c)) &&
+    (!onlyBudget || inBudget(c)) &&
+    (!q || (c.title + " " + (c.city || "")).toLowerCase().includes(q))
+  ));
+}
+
+function gauge(c) {
+  if (c.expected === null || c.deal === null) return '<div class="gauge"></div>';
+  // Довжина смуги = наскільки ціна розходиться зі справедливою.
+  // Довша бурштинова — краща угода; сіра — просять більше за ринок.
+  // Шкала до 35%: далі вже або помилка оголошення, або авто в іншому стані.
+  const pct = Math.min(100, (Math.abs(c.deal) / 0.35) * 100);
+  const over = c.deal < 0;
+  const sign = c.deal >= 0 ? "−" : "+";
+  return '<div class="gauge">' +
+    '<div class="gauge-top"><span class="' + (over ? "deal-neg" : "deal-pos") + '">' +
+      sign + Math.abs(c.deal * 100).toFixed(0) + "% до ринку</span>" +
+      "<span class='deal-neg'>" + usd(c.expected) + "</span></div>" +
+    '<div class="track"><i class="fill ' + (over ? "over" : "") + '" style="width:' + pct.toFixed(1) + '%"></i></div>' +
+    '<div class="fitline">відповідність<span class="fitbar"><i style="width:' +
+      ((c.fit || 0) * 100).toFixed(0) + '%"></i></span><span class="fitval">' +
+      (c.fit === null ? "—" : c.fit.toFixed(2)) + "</span></div>" +
+  "</div>";
+}
+
+function specs(c) {
+  const bits = [];
+  bits.push('<span class="num">' + c.year + "</span>");
+  if (c.km !== null) bits.push('<span class="num">' + Math.round(c.km / 1000) + "k км</span>");
+  if (c.engine !== null) bits.push('<span class="num">' + c.engine + " л</span>");
+  if (c.gearbox) bits.push("<span>" + esc(c.gearbox) + "</span>");
+  if (c.city) bits.push("<span>" + esc(c.city) + "</span>");
+  bits.push('<span class="src">' + (c.source === "rst" ? "RST" : "AUTO.RIA") + "</span>");
+  return bits.join("");
+}
+
+function detail(c) {
+  const hist = c.history.length < 2
+    ? "<div style='color:var(--muted);font-size:13px'>Ціна не змінювалась відколи стежимо.</div>"
+    : "<dl>" + c.history.slice(-6).map(([d, p]) =>
+        "<dt>" + new Date(d).toLocaleDateString("uk-UA") + "</dt><dd>" + usd(p) + "</dd>").join("") + "</dl>";
+  const gap = c.expected === null ? "—" : usd(c.expected - c.price);
+  return '<div class="detail">' +
+    (c.wanted ? '<div class="alarm-note"><b>У розшуку</b> за реєстром Національної поліції — ' +
+      esc(c.wantedNote || "") + "</div>" : "") +
+    "<div><h4>Ціна</h4><dl>" +
+      "<dt>Просять</dt><dd>" + usd(c.price) + "</dd>" +
+      "<dt>Справедлива</dt><dd>" + usd(c.expected) + "</dd>" +
+      "<dt>Різниця</dt><dd>" + gap + "</dd>" +
+    "</dl></div>" +
+    "<div><h4>Авто</h4><dl>" +
+      "<dt>Рік</dt><dd>" + c.year + "</dd>" +
+      "<dt>Пробіг</dt><dd>" + (c.km === null ? "—" : c.km.toLocaleString("uk-UA") + " км") + "</dd>" +
+      "<dt>Двигун</dt><dd>" + (c.engine === null ? "—" : c.engine + " л") + "</dd>" +
+      "<dt>Коробка</dt><dd>" + esc(c.gearbox || "—") + "</dd>" +
+      "<dt>Місто</dt><dd>" + esc(c.city || "—") + "</dd>" +
+    "</dl></div>" +
+    "<div><h4>Історія ціни</h4>" + hist +
+      '<a class="go" href="' + esc(c.url) + '" target="_blank" rel="noopener">Відкрити оголошення</a></div>' +
+  "</div>";
+}
+
+function render() {
+  const rows = view();
+  document.getElementById("count").textContent = rows.length + " авто";
+  const el = document.getElementById("ladder");
+  if (rows.length === 0) {
+    el.innerHTML = '<div class="empty">За цими умовами нічого немає. Послаб фільтри.</div>';
+    return;
+  }
+  el.innerHTML = rows.map(c =>
+    '<article class="row ' + (isHit(c) ? "is-hit " : "") + (c.wanted ? "is-alarm" : "") +
+      '" data-id="' + c.id + '" tabindex="0">' +
+      "<div><div class='price" + (inBudget(c) ? " in-budget" : "") + "'>" + usd(c.price) + "</div>" +
+        '<div class="expected">' + (c.expected === null ? "" : "ринок " + usd(c.expected)) + "</div></div>" +
+      '<div><div class="name">' +
+        (isHit(c) ? '<span class="flag" title="вигідно і підходить">🎯</span>' : "") +
+        (c.wanted ? '<span class="flag" title="у розшуку">🚨</span>' : "") +
+        esc(c.title) + "</div>" +
+        '<div class="specs">' + specs(c) + "</div></div>" +
+      gauge(c) +
+      (open === c.id ? detail(c) : "") +
+    "</article>"
+  ).join("");
+}
+
+document.getElementById("ladder").addEventListener("click", e => {
+  if (e.target.closest("a")) return;
+  const row = e.target.closest(".row");
+  if (!row) return;
+  const id = Number(row.dataset.id);
+  open = open === id ? null : id;
+  render();
+});
+document.getElementById("ladder").addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const row = e.target.closest(".row");
+  if (!row) return;
+  e.preventDefault();
+  const id = Number(row.dataset.id);
+  open = open === id ? null : id;
+  render();
+});
+["q", "only", "budget", "sort"].forEach(id =>
+  document.getElementById(id).addEventListener("input", () => { open = null; render(); }));
+
+render();
+</script>
+</body>
+</html>
